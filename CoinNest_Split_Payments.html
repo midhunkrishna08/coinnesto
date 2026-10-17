@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoinNest – Offline Money Tracker</title>
+<style>
+:root{--bg:#f4f1ff;--card:#fff;--ink:#241f3d;--mute:#6b6688;--pri:#6c4cf1;--pri2:#8d74ff;--inc:#12a364;--exp:#e5484d;--line:#e6e1fa;--warn:#fff4d6;--r:16px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;padding:18px 16px 14px;text-align:center}
+header h1{margin:0;font-size:1.6rem}header p{margin:4px 0 0;font-size:.85rem;opacity:.92}
+.wrap{max-width:960px;margin:0 auto;padding:12px}
+.tabs{display:flex;gap:8px;margin:4px 0 12px}
+.tabs button{flex:1;padding:12px;border:2px solid var(--line);background:#fff;border-radius:var(--r);font-size:1rem;font-weight:700;color:var(--mute);cursor:pointer}
+.tabs button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(60,40,140,.07)}
+h2{margin:0 0 10px;font-size:1.1rem}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat small{color:var(--mute);display:block}.stat b{font-size:1.35rem;display:block}.stat span{font-size:.8rem;color:var(--mute)}
+.neg{color:var(--exp)}.pos{color:var(--inc)}
+label{display:block;font-size:.85rem;font-weight:600;margin:8px 0 3px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:3px solid #b9a9ff;outline-offset:1px}
+.row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.btn{padding:10px 14px;border:0;border-radius:10px;background:var(--pri);color:#fff;font-weight:700;cursor:pointer}
+.btn.alt{background:#ece8ff;color:var(--pri)}.btn.red{background:var(--exp)}.btn.sm{padding:6px 10px;font-size:.8rem}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.seg{display:flex;gap:6px}.seg label{flex:1;margin:0}
+.seg input{position:absolute;opacity:0;width:0}
+.seg span{display:block;text-align:center;padding:10px;border:2px solid var(--line);border-radius:10px;cursor:pointer;font-weight:700}
+.seg input:checked+span{background:var(--pri);color:#fff;border-color:var(--pri)}
+.seg input:focus-visible+span{outline:3px solid #b9a9ff}
+.msg{padding:10px 12px;border-radius:10px;margin:8px 0;font-size:.9rem}
+.msg.ok{background:#dcf7ea}.msg.err{background:#ffe3e3}.msg.warn{background:var(--warn)}
+.tx{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.tx:last-child{border:0}.tx .l{min-width:0}.tx .l b{display:block}.tx .l small{color:var(--mute);word-break:break-word}
+.tx .r{text-align:right;white-space:nowrap}.tx .r b{display:block}
+.tag{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;background:#ece8ff;color:var(--pri);margin-right:3px}
+.bar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:.85rem}
+.bar .n{width:110px;flex:none}.bar .t{flex:1;background:#eee9ff;border-radius:99px;height:12px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri2));border-radius:99px}
+.bar .v{width:90px;text-align:right;flex:none}
+.empty{text-align:center;color:var(--mute);padding:18px 6px}
+details summary{cursor:pointer;font-weight:700;font-size:1.1rem}
+.note{font-size:.8rem;color:var(--mute)}
+.hide{display:none}
+.split{border:1.5px dashed var(--pri2);border-radius:12px;padding:10px 12px;margin-top:10px;background:#faf8ff}
+.split b{display:block}
+.split .ok{color:var(--inc);font-weight:700}.split .bad{color:var(--exp);font-weight:700}
+</style>
+</head>
+<body>
+<header>
+<h1>🪙 CoinNest</h1>
+<p>Your pocket-friendly money tracker • Save locally or connect Google to set up cloud backup</p>
+</header>
+<div class="wrap">
+<section class="card" aria-labelledby="google-title">
+<h2 id="google-title">☁️ Google account &amp; cloud backup</h2>
+<p class="note">Sign-in alone does not save data to Gmail. CoinNest needs Google Drive authorization to store your backup in your Drive. This standalone HTML file cannot securely complete that setup without a Google OAuth client ID and Google Drive API configuration.</p>
+<div class="btns">
+<button class="btn" id="googleSetup" type="button">🔐 Set up Google Drive backup</button>
+<button class="btn alt" id="googleExport" type="button">⬇️ Download backup for Drive</button>
+</div>
+<div id="googleMsg" role="status"></div>
+</section>
+<div id="banner" role="status"></div>
+<div class="tabs" role="tablist" aria-label="Ledger">
+<button role="tab" id="tab-college" data-l="college">🎓 College</button>
+<button role="tab" id="tab-personal" data-l="personal">🏠 Personal</button>
+</div>
+
+<section class="card" aria-labelledby="h-bal">
+<h2 id="h-bal">💰 Current balances <span class="note" id="ledName"></span></h2>
+<div class="grid" id="balances"></div>
+<p class="note">Balances = opening balance + all money added − all expenses (all time, not affected by filters).</p>
+</section>
+
+<section class="card" aria-labelledby="h-add">
+<h2 id="h-add">➕ <span id="formTitle">Add a transaction</span></h2>
+<form id="txForm" novalidate>
+<div class="seg" role="radiogroup" aria-label="Transaction type">
+<label><input type="radio" name="type" value="expense" checked><span>💸 Expense</span></label>
+<label><input type="radio" name="type" value="income"><span>💵 Add money</span></label>
+</div>
+<div class="row">
+<div><label for="amount">Amount</label><input id="amount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required></div>
+<div><label for="date">Date</label><input id="date" type="date" required></div>
+<div><label for="method">Payment method</label><select id="method"><option value="cash">💵 Cash</option><option value="upi">📱 UPI</option><option value="cash+upi">💵📱 Cash + UPI (split)</option></select></div>
+<div><label for="owner">Whose money?</label><select id="owner"></select></div>
+<div><label for="cat">Category</label><select id="cat"></select></div>
+<div id="newCatBox" class="hide"><label for="newCat">New category name</label><input id="newCat" maxlength="30" placeholder="e.g. Gifts"></div>
+</div>
+<div id="splitBox" class="split hide">
+<b>✂️ Split this amount</b>
+<p class="note" style="margin:2px 0 6px">Set how much goes to each one. The parts must add up to the total Amount above.</p>
+<div class="row" id="splitGrid"></div>
+<p class="note" id="splitInfo" style="margin:8px 0 4px"></p>
+<button class="btn alt sm" id="splitEq" type="button">Split equally</button>
+</div>
+<label for="note">Note (optional)</label><input id="note" maxlength="120" placeholder="e.g. Lunch with friends">
+<div id="formMsg" role="alert"></div>
+<div class="btns"><button class="btn" id="saveBtn" type="submit">Save</button><button class="btn alt hide" id="cancelEdit" type="button">Cancel edit</button></div>
+</form>
+</section>
+
+<section class="card" aria-labelledby="h-fil">
+<h2 id="h-fil">🔎 Filters &amp; summary</h2>
+<div class="row">
+<div><label for="fRange">Date range</label><select id="fRange"><option value="month">This month</option><option value="week">This week</option><option value="all">All time</option><option value="custom">Custom range</option></select></div>
+<div id="fFromBox" class="hide"><label for="fFrom">From</label><input id="fFrom" type="date"></div>
+<div id="fToBox" class="hide"><label for="fTo">To</label><input id="fTo" type="date"></div>
+<div><label for="fCat">Category</label><select id="fCat"></select></div>
+<div><label for="fMethod">Payment method</label><select id="fMethod"><option value="all">All</option><option value="cash">Cash</option><option value="upi">UPI</option></select></div>
+</div>
+<p class="note" id="rangeLabel"></p>
+<div class="grid" id="summary"></div>
+</section>
+
+<section class="card" aria-labelledby="h-cat">
+<h2 id="h-cat">📊 Spending by category</h2>
+<div id="catBars"></div>
+</section>
+
+<section class="card" aria-labelledby="h-hist">
+<h2 id="h-hist">🧾 Transactions</h2>
+<div id="history"></div>
+</section>
+
+<section class="card">
+<details>
+<summary>⚙️ Settings, opening balances &amp; backup</summary>
+<h2 style="margin-top:14px">Currency symbol</h2>
+<label for="cur">Symbol shown before amounts</label>
+<input id="cur" maxlength="4" style="max-width:120px">
+
+<h2 style="margin-top:18px">Opening balances — <span id="obLed"></span></h2>
+<p class="note">Money you already had before you started tracking. Changing this is <b>not</b> a transaction; it simply sets the starting point of each bucket.</p>
+<div class="row" id="obGrid"></div>
+<div class="btns"><button class="btn" id="saveOb" type="button">Save opening balances</button></div>
+<div id="obMsg" role="status"></div>
+
+<h2 style="margin-top:18px">Backup</h2>
+<div class="btns">
+<button class="btn alt" id="expJson" type="button">⬇️ Export JSON backup</button>
+<button class="btn alt" id="expCsv" type="button">⬇️ Export CSV (both ledgers)</button>
+<label class="btn alt" for="impFile" style="margin:0;cursor:pointer">⬆️ Import JSON backup</label>
+<input id="impFile" type="file" accept=".json,application/json" class="hide">
+</div>
+<div id="bkMsg" role="status"></div>
+
+<h2 style="margin-top:18px">Danger zone</h2>
+<div class="btns"><button class="btn red" id="reset" type="button">🗑️ Reset everything</button></div>
+</details>
+</section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var KEY="coinnest_v1", M=["cash","upi"], O=["my","home"];
+var DEFCATS=["Bus","Food","Petrol","Fees","Books","Supplies","Shopping","Bills","Entertainment","Health","Other"];
+var EMO={Bus:"🚌",Food:"🍔",Petrol:"⛽",Fees:"🎓",Books:"📚",Supplies:"✏️",Shopping:"🛍️",Bills:"🧾",Entertainment:"🎬",Health:"💊",Other:"📦"};
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)};
+var r2=function(x){return Math.round(x*100)/100};
+var num=function(x){x=parseFloat(x);return isFinite(x)&&x>=0?r2(x):0};
+var blank=function(){return{opening:{cash:{my:0,home:0},upi:{my:0,home:0}},tx:[]}};
+var defState=function(){return{v:1,currency:"₹",active:"college",cats:[],ledgers:{college:blank(),personal:blank()}}};
+var S, locked=false, storageOk=true, corruptRaw=null, editId=null, editIds=[], splitTouched=false;
+var F={range:"month",from:"",to:"",cat:"all",method:"all"};
+
+function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+function norm(p){
+  if(!p||typeof p!=="object"||!p.ledgers)throw new Error("Not a CoinNest backup");
+  var o=defState();
+  o.currency=(typeof p.currency==="string"&&p.currency.trim())?p.currency.trim().slice(0,4):"₹";
+  o.active=p.active==="personal"?"personal":"college";
+  o.cats=Array.isArray(p.cats)?p.cats.filter(function(c){return typeof c==="string"}).map(function(c){return c.trim()}).filter(Boolean):[];
+  ["college","personal"].forEach(function(k){
+    var l=p.ledgers[k];
+    if(!l||!Array.isArray(l.tx))throw new Error("Ledger '"+k+"' is missing or invalid");
+    var op=l.opening||{};
+    M.forEach(function(m){O.forEach(function(w){o.ledgers[k].opening[m][w]=num(op[m]&&op[m][w])})});
+    o.ledgers[k].tx=l.tx.map(function(t,i){
+      if(!t||["expense","income"].indexOf(t.type)<0||!(+t.amount>0)||!/^\d{4}-\d\d-\d\d$/.test(t.date)||M.indexOf(t.method)<0||O.indexOf(t.owner)<0)
+        throw new Error("Transaction #"+(i+1)+" in "+k+" is invalid");
+      var tx={id:String(t.id||uid()),type:t.type,amount:r2(+t.amount),date:t.date,category:String(t.category||"Other"),method:t.method,owner:t.owner,note:String(t.note||"")};
+      if(t.grp)tx.grp=String(t.grp);
+      return tx;
+    });
+  });
+  return o;
+}
+function load(){
+  var raw=null;
+  try{raw=localStorage.getItem(KEY)}catch(e){storageOk=false}
+  if(!raw){S=defState();return}
+  try{S=norm(JSON.parse(raw))}
+  catch(e){
+    S=defState();locked=true;corruptRaw=raw;
+    try{localStorage.setItem(KEY+"_damaged_copy",raw)}catch(x){}
+  }
+}
+function save(){
+  if(locked)return;
+  try{localStorage.setItem(KEY,JSON.stringify(S));storageOk=true}catch(e){storageOk=false;renderBanner()}
+}
+
+function L(){return S.ledgers[S.active]}
+function bal(m,o,skip){
+  var l=L(),b=l.opening[m][o],sk=skip?[].concat(skip):[];
+  l.tx.forEach(function(t){if(t.method===m&&t.owner===o&&sk.indexOf(t.id)<0)b+=t.type==="income"?t.amount:-t.amount});
+  return r2(b);
+}
+function fmt(n){
+  var neg=n<0;
+  return(neg?"−":"")+S.currency+" "+Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function ownerName(m,o){return m==="cash"?(o==="my"?"My Hand Cash":"Home Cash"):(o==="my"?"My UPI":"Home UPI")}
+function allCats(){
+  var seen={},out=[];
+  DEFCATS.concat(S.cats).forEach(function(c){var k=c.toLowerCase();if(!seen[k]){seen[k]=1;out.push(c)}});
+  L().tx.forEach(function(t){var k=t.category.toLowerCase();if(!seen[k]){seen[k]=1;out.push(t.category)}});
+  return out;
+}
+function emo(c){return EMO[c]||"🏷️"}
+function mLabel(m){return m==="cash"?"💵 Cash":"📱 UPI"}
+function groupOf(t){return t.grp?L().tx.filter(function(x){return x.grp===t.grp}):[t]}
+function sortParts(a,b){return (M.indexOf(a.method)-M.indexOf(b.method))||(O.indexOf(a.owner)-O.indexOf(b.owner))}
+function splitPairs(){
+  var m=$("#method").value,o=$("#owner").value,out=[];
+  (m==="cash+upi"?M:[m]).forEach(function(mm){(o==="my+home"?O:[o]).forEach(function(oo){out.push({m:mm,o:oo})})});
+  return out;
+}
+
+function range(){
+  var d=new Date(),f="",t="",label="";
+  if(F.range==="month"){f=iso(new Date(d.getFullYear(),d.getMonth(),1));t=iso(new Date(d.getFullYear(),d.getMonth()+1,0));label="This month ("+f+" to "+t+")"}
+  else if(F.range==="week"){var day=(d.getDay()+6)%7;var s=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);var e=new Date(s.getFullYear(),s.getMonth(),s.getDate()+6);f=iso(s);t=iso(e);label="This week (Mon "+f+" to Sun "+t+")"}
+  else if(F.range==="custom"){f=F.from;t=F.to;label="Custom: "+(f||"start")+" to "+(t||"today and beyond")}
+  else label="All time";
+  return{f:f,t:t,label:label};
+}
+function filtered(){
+  var r=range();
+  return L().tx.filter(function(t){
+    if(r.f&&t.date<r.f)return false;
+    if(r.t&&t.date>r.t)return false;
+    if(F.cat!=="all"&&t.category!==F.cat)return false;
+    if(F.method!=="all"&&t.method!==F.method)return false;
+    return true;
+  });
+}
+
+function renderBanner(){
+  var h="";
+  if(locked)h+='<div class="msg err"><b>⚠️ Saved data could not be read.</b> Your old data was NOT erased and a copy was kept. Nothing new will be saved until you choose: <div class="btns"><button class="btn sm alt" id="dlBad">Download damaged data</button><button class="btn sm red" id="startFresh">Start fresh (replaces saved data)</button></div></div>';
+  if(!storageOk)h+='<div class="msg warn">⚠️ This browser is blocking local storage, so changes will be lost when you close the page. Use <b>Export JSON backup</b> often.</div>';
+  $("#banner").innerHTML=h;
+  var a=$("#dlBad");if(a)a.onclick=function(){download("coinnest-damaged-data.txt",corruptRaw||"","text/plain")};
+  var b=$("#startFresh");if(b)b.onclick=function(){if(confirm("Start fresh? The unreadable saved data will be replaced (a download copy is recommended first).")){locked=false;corruptRaw=null;save();render()}};
+}
+function renderBalances(){
+  var cash=bal("cash","my")+bal("cash","home"),upi=bal("upi","my")+bal("upi","home"),tot=r2(cash+upi);
+  var my=bal("cash","my")+bal("upi","my"),hm=bal("cash","home")+bal("upi","home");
+  var c=function(n){return n<0?" neg":""};
+  $("#balances").innerHTML=
+   '<div class="stat"><small>💵 Cash balance</small><b class="'+c(cash)+'">'+fmt(cash)+'</b><span>My Hand Cash: '+fmt(bal("cash","my"))+'<br>Home Cash: '+fmt(bal("cash","home"))+'</span></div>'+
+   '<div class="stat"><small>📱 UPI balance</small><b class="'+c(upi)+'">'+fmt(upi)+'</b><span>My UPI: '+fmt(bal("upi","my"))+'<br>Home UPI: '+fmt(bal("upi","home"))+'</span></div>'+
+   '<div class="stat"><small>✅ Total available</small><b class="'+c(tot)+'">'+fmt(tot)+'</b><span>My Money: '+fmt(r2(my))+'<br>Home Money: '+fmt(r2(hm))+'</span></div>';
+  $("#ledName").textContent="— "+(S.active==="college"?"🎓 College":"🏠 Personal");
+}
+function countTx(list){var k={};list.forEach(function(t){k[t.grp||t.id]=1});return Object.keys(k).length}
+function renderSummary(){
+  var list=filtered(),r=range(),exp=0,inc=0,my=0,hm=0;
+  list.forEach(function(t){if(t.type==="expense"){exp+=t.amount;if(t.owner==="my")my+=t.amount;else hm+=t.amount}else inc+=t.amount});
+  $("#rangeLabel").textContent="Showing: "+r.label+(F.cat!=="all"?" • "+F.cat:"")+(F.method!=="all"?" • "+F.method.toUpperCase():"")+" — "+countTx(list)+" transaction(s)";
+  $("#summary").innerHTML=
+   '<div class="stat"><small>💸 Total expenses</small><b class="neg">'+fmt(r2(exp))+'</b></div>'+
+   '<div class="stat"><small>💵 Money added</small><b class="pos">'+fmt(r2(inc))+'</b></div>'+
+   '<div class="stat"><small>🙋 Spent from My Money</small><b>'+fmt(r2(my))+'</b></div>'+
+   '<div class="stat"><small>🏡 Spent from Home Money</small><b>'+fmt(r2(hm))+'</b></div>';
+  var by={};list.forEach(function(t){if(t.type==="expense")by[t.category]=(by[t.category]||0)+t.amount});
+  var ks=Object.keys(by).sort(function(a,b){return by[b]-by[a]});
+  if(!ks.length){$("#catBars").innerHTML='<div class="empty">No expenses in this view yet 🌱</div>';return}
+  var mx=by[ks[0]];
+  $("#catBars").innerHTML=ks.map(function(k){
+    return'<div class="bar"><span class="n">'+emo(k)+" "+esc(k)+'</span><span class="t"><i style="width:'+Math.max(3,by[k]/mx*100)+'%"></i></span><span class="v">'+fmt(r2(by[k]))+'</span></div>';
+  }).join("");
+}
+function renderHistory(){
+  var list=filtered().slice().reverse().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
+  if(!list.length){$("#history").innerHTML='<div class="empty">'+(L().tx.length?"No transactions match these filters 🔍":"No transactions yet. Add your first one above! ✨")+'</div>';return}
+  var gs=[],map={};
+  list.forEach(function(t){var k=t.grp||t.id;if(!map[k]){map[k]={first:t,parts:[]};gs.push(map[k])}map[k].parts.push(t)});
+  $("#history").innerHTML=gs.map(function(g){
+    var t=g.first,inc=t.type==="income",ps=g.parts.slice().sort(sortParts),tot=r2(ps.reduce(function(a,p){return a+p.amount},0)),tags;
+    if(ps.length>1)tags='<span class="tag">✂️ Split</span>'+ps.map(function(p){return'<span class="tag">'+mLabel(p.method)+" • "+ownerName(p.method,p.owner)+" "+fmt(p.amount)+'</span>'}).join("");
+    else tags='<span class="tag">'+mLabel(t.method)+'</span><span class="tag">'+ownerName(t.method,t.owner)+'</span>';
+    return'<div class="tx"><div class="l"><b>'+emo(t.category)+" "+esc(t.category)+'</b><small>'+t.date+(t.note?" • "+esc(t.note):"")+'</small><div style="margin-top:3px">'+tags+'</div></div>'+
+    '<div class="r"><b class="'+(inc?"pos":"neg")+'">'+(inc?"+":"−")+fmt(tot).replace("−","")+'</b><div style="margin-top:4px"><button class="btn alt sm" data-edit="'+t.id+'" aria-label="Edit">✏️</button> <button class="btn alt sm" data-del="'+t.id+'" aria-label="Delete">🗑️</button></div></div></div>';
+  }).join("");
+}
+function fillCats(sel,withAll,val,withNew){
+  var h=withAll?'<option value="all">All categories</option>':"";
+  allCats().forEach(function(c){h+='<option value="'+esc(c)+'">'+emo(c)+" "+esc(c)+"</option>"});
+  if(withNew)h+='<option value="__new">➕ Add new category…</option>';
+  sel.innerHTML=h;
+  if(val&&Array.prototype.some.call(sel.options,function(o){return o.value===val}))sel.value=val;
+}
+function fillOwners(){
+  var m=$("#method").value,cur=$("#owner").value||"my",both=m==="cash+upi";
+  $("#owner").innerHTML='<option value="my">🙋 '+(both?"My money (Cash + UPI)":ownerName(m,"my"))+'</option><option value="home">🏡 '+(both?"Home money (Cash + UPI)":ownerName(m,"home"))+'</option><option value="my+home">🙋🏡 My + Home (split)</option>';
+  $("#owner").value=cur;
+  if($("#owner").value!==cur)$("#owner").value="my";
+  renderSplit();
+}
+function splitVals(){var v={};document.querySelectorAll("#splitGrid input").forEach(function(i){v[i.dataset.k]=i.value});return v}
+function renderSplit(){
+  var ps=splitPairs(),box=$("#splitBox");
+  if(ps.length<2){box.classList.add("hide");$("#splitGrid").innerHTML="";return}
+  var old=splitVals(),amt=parseFloat($("#amount").value),h="";
+  ps.forEach(function(p){
+    var k=p.m+p.o;
+    h+='<div><label for="sp-'+k+'">'+ownerName(p.m,p.o)+'</label><input id="sp-'+k+'" data-k="'+k+'" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>';
+  });
+  $("#splitGrid").innerHTML=h;
+  var n=ps.length,even=(amt>0)?Math.floor(amt/n*100)/100:0,left=amt>0?r2(amt):0;
+  ps.forEach(function(p,i){
+    var k=p.m+p.o,el=$("#sp-"+k);
+    if(splitTouched&&old[k]!==undefined)el.value=old[k];
+    else if(!splitTouched&&amt>0){var v=(i===n-1)?r2(left):even;el.value=v;left=r2(left-v)}
+  });
+  box.classList.remove("hide");
+  splitInfo();
+}
+function splitSum(){var t=0;document.querySelectorAll("#splitGrid input").forEach(function(i){t+=num(i.value)});return r2(t)}
+function splitInfo(){
+  var amt=parseFloat($("#amount").value),sum=splitSum(),el=$("#splitInfo");
+  if(!(amt>0)){el.innerHTML="Enter the total Amount above, then set each part.";return}
+  var diff=r2(amt-sum);
+  el.innerHTML=Math.abs(diff)<0.005?'<span class="ok">✅ Parts add up to '+fmt(r2(amt))+'</span>':'<span class="bad">Parts add up to '+fmt(sum)+' of '+fmt(r2(amt))+' — '+(diff>0?fmt(diff)+" left to assign":fmt(-diff)+" too much")+'</span>';
+}
+function renderOpening(){
+  $("#obLed").textContent=S.active==="college"?"🎓 College":"🏠 Personal";
+  var h="";
+  M.forEach(function(m){O.forEach(function(o){
+    h+='<div><label for="ob-'+m+o+'">'+ownerName(m,o)+'</label><input id="ob-'+m+o+'" type="number" step="0.01" min="0" value="'+L().opening[m][o]+'"></div>';
+  })});
+  $("#obGrid").innerHTML=h;
+}
+function render(){
+  document.querySelectorAll(".tabs button").forEach(function(b){var on=b.dataset.l===S.active;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
+  renderBanner();
+  var fc=$("#fCat").value||F.cat;
+  fillCats($("#fCat"),true,fc);F.cat=$("#fCat").value;
+  var c=$("#cat").value;fillCats($("#cat"),false,c,true);
+  $("#cur").value=S.currency;
+  renderBalances();renderSummary();renderHistory();renderOpening();
+}
+
+function msg(el,t,k){el.innerHTML=t?'<div class="msg '+k+'">'+t+"</div>":""}
+function resetForm(){
+  editId=null;editIds=[];splitTouched=false;$("#txForm").reset();$("#date").value=today();$("#newCatBox").classList.add("hide");
+  $("#formTitle").textContent="Add a transaction";$("#saveBtn").textContent="Save";$("#cancelEdit").classList.add("hide");fillOwners();
+}
+function submitTx(e){
+  e.preventDefault();
+  var type=document.querySelector('input[name="type"]:checked').value;
+  var amount=parseFloat($("#amount").value),date=$("#date").value;
+  var cat=$("#cat").value==="__new"?$("#newCat").value.trim():$("#cat").value,note=$("#note").value.trim();
+  var err=[],pairs=splitPairs(),parts=[];
+  if(!(amount>0))err.push("Enter an amount greater than 0.");
+  if(!date)err.push("Pick a date.");
+  if(!cat)err.push("Choose or type a category.");
+  if(amount>0){
+    amount=r2(amount);
+    if(pairs.length>1){
+      pairs.forEach(function(p){var v=num($("#sp-"+p.m+p.o).value);if(v>0)parts.push({m:p.m,o:p.o,a:v})});
+      var sum=r2(parts.reduce(function(a,p){return a+p.a},0));
+      if(!parts.length)err.push("Enter an amount for at least one part of the split.");
+      else if(Math.abs(sum-amount)>0.005)err.push("Split parts add up to "+fmt(sum)+" but the total is "+fmt(amount)+". Please make them equal.");
+    }else parts=[{m:pairs[0].m,o:pairs[0].o,a:amount}];
+  }
+  if(err.length){msg($("#formMsg"),err.join("<br>"),"err");return}
+  if(type==="expense"){
+    var warn=[];
+    parts.forEach(function(p){
+      var avail=bal(p.m,p.o,editIds);
+      if(p.a>avail+0.001)warn.push(ownerName(p.m,p.o)+" only has "+fmt(avail)+" (expense "+fmt(p.a)+" → "+fmt(r2(avail-p.a))+")");
+    });
+    if(warn.length&&!confirm("⚠️ This would make a balance negative:\n\n"+warn.join("\n")+"\n\nRecord it anyway?"))return;
+  }
+  var low=cat.toLowerCase(),known=allCats().some(function(c){return c.toLowerCase()===low});
+  if(!known)S.cats.push(cat);
+  else cat=allCats().filter(function(c){return c.toLowerCase()===low})[0];
+  var g=parts.length>1?uid():null;
+  var news=parts.map(function(p){
+    var t={id:(parts.length===1&&editIds.length===1)?editIds[0]:uid(),type:type,amount:p.a,date:date,category:cat,method:p.m,owner:p.o,note:note};
+    if(g)t.grp=g;
+    return t;
+  });
+  var arr=L().tx,at=-1;
+  if(editIds.length){
+    at=arr.findIndex(function(x){return editIds.indexOf(x.id)>=0});
+    arr=arr.filter(function(x){return editIds.indexOf(x.id)<0});
+  }
+  if(at<0||at>arr.length)at=arr.length;
+  L().tx=arr.slice(0,at).concat(news,arr.slice(at));
+  var wasEdit=editIds.length>0;
+  save();resetForm();render();
+  msg($("#formMsg"),wasEdit?"✅ Changes saved.":"✅ Saved! Balances updated.","ok");
+  setTimeout(function(){msg($("#formMsg"),"")},3000);
+}
+function startEdit(id){
+  var t=L().tx.find(function(x){return x.id===id});if(!t)return;
+  var mem=groupOf(t),ms=[],os=[],tot=0;
+  mem.forEach(function(p){if(ms.indexOf(p.method)<0)ms.push(p.method);if(os.indexOf(p.owner)<0)os.push(p.owner);tot+=p.amount});
+  editId=id;editIds=mem.map(function(p){return p.id});splitTouched=true;
+  document.querySelector('input[name="type"][value="'+t.type+'"]').checked=true;
+  $("#amount").value=r2(tot);$("#date").value=t.date;
+  $("#method").value=ms.length>1?"cash+upi":ms[0];
+  $("#owner").innerHTML='<option value="my"></option><option value="home"></option><option value="my+home"></option>';
+  $("#owner").value=os.length>1?"my+home":os[0];
+  fillOwners();
+  if(splitPairs().length>1){
+    document.querySelectorAll("#splitGrid input").forEach(function(i){i.value="0"});
+    mem.forEach(function(p){var el=$("#sp-"+p.method+p.owner);if(el)el.value=p.amount});
+    splitInfo();
+  }
+  fillCats($("#cat"),false,t.category,true);$("#cat").value=t.category;$("#newCatBox").classList.add("hide");$("#note").value=t.note;
+  $("#formTitle").textContent="Edit transaction";$("#saveBtn").textContent="Save changes";$("#cancelEdit").classList.remove("hide");
+  msg($("#formMsg"),"");$("#txForm").scrollIntoView({behavior:"smooth",block:"center"});$("#amount").focus();
+}
+
+function download(name,text,type){
+  var a=document.createElement("a"),u=URL.createObjectURL(new Blob([text],{type:type}));
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},500);
+}
+function csvCell(v){v=String(v);if(/^[=+\-@]/.test(v))v="'"+v;return'"'+v.replace(/"/g,'""')+'"'}
+function exportCsv(){
+  var rows=[["Ledger","Date","Type","Category","Payment method","Money owner","Amount","Note","Split group"]];
+  ["college","personal"].forEach(function(k){S.ledgers[k].tx.slice().sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(t){
+    rows.push([k,t.date,t.type,t.category,t.method.toUpperCase(),ownerName(t.method,t.owner),t.amount.toFixed(2),t.note,t.grp||""]);
+  })});
+  download("coinnest-transactions-"+today()+".csv","\ufeff"+rows.map(function(r){return r.map(csvCell).join(",")}).join("\r\n"),"text/csv");
+}
+function importFile(file){
+  var el=$("#bkMsg");
+  if(!file)return;
+  var fr=new FileReader();
+  fr.onerror=function(){msg(el,"Could not read that file.","err")};
+  fr.onload=function(){
+    var data;
+    try{data=norm(JSON.parse(fr.result))}catch(e){msg(el,"❌ Import failed: "+esc(e.message)+". Your current data was not changed.","err");return}
+    var n=data.ledgers.college.tx.length+data.ledgers.personal.tx.length;
+    if(!confirm("Replace ALL current data with this backup ("+n+" transactions)? This cannot be undone."))return;
+    S=data;locked=false;save();resetForm();render();msg(el,"✅ Backup imported.","ok");
+  };
+  fr.readAsText(file);
+}
+
+/* events */
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){S.active=b.dataset.l;save();resetForm();F.cat="all";$("#fCat").value="all";render()}});
+$("#txForm").addEventListener("submit",submitTx);
+$("#cancelEdit").onclick=function(){resetForm();msg($("#formMsg"),"")};
+$("#method").onchange=function(){splitTouched=false;fillOwners()};
+$("#owner").onchange=function(){splitTouched=false;renderSplit()};
+$("#amount").addEventListener("input",function(){if(!$("#splitBox").classList.contains("hide")){if(!splitTouched)renderSplit();else splitInfo()}});
+$("#splitGrid").addEventListener("input",function(e){
+  splitTouched=true;
+  var ins=document.querySelectorAll("#splitGrid input"),amt=parseFloat($("#amount").value);
+  if(ins.length===2&&amt>0){var o=e.target===ins[0]?ins[1]:ins[0];o.value=Math.max(0,r2(amt-num(e.target.value)))}
+  splitInfo();
+});
+$("#splitEq").onclick=function(){splitTouched=false;renderSplit()};
+$("#cat").onchange=function(){var n=$("#cat").value==="__new";$("#newCatBox").classList.toggle("hide",!n);if(n)$("#newCat").focus()};
+$("#fRange").onchange=function(){F.range=this.value;var c=F.range==="custom";$("#fFromBox").classList.toggle("hide",!c);$("#fToBox").classList.toggle("hide",!c);render()};
+$("#fFrom").onchange=function(){F.from=this.value;render()};
+$("#fTo").onchange=function(){F.to=this.value;render()};
+$("#fCat").onchange=function(){F.cat=this.value;render()};
+$("#fMethod").onchange=function(){F.method=this.value;render()};
+$("#history").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  if(b.dataset.edit)startEdit(b.dataset.edit);
+  if(b.dataset.del){
+    var t=L().tx.find(function(x){return x.id===b.dataset.del});if(!t)return;
+    var mem=groupOf(t),ids=mem.map(function(p){return p.id}),tot=r2(mem.reduce(function(a,p){return a+p.amount},0));
+    if(confirm("Delete this "+t.type+" of "+fmt(tot)+(mem.length>1?" (split into "+mem.length+" parts)":"")+" ("+t.category+", "+t.date+")?")){
+      L().tx=L().tx.filter(function(x){return ids.indexOf(x.id)<0});if(editIds.some(function(i){return ids.indexOf(i)>=0}))resetForm();save();render();
+    }
+  }
+});
+$("#cur").onchange=function(){S.currency=this.value.trim()||"₹";save();render()};
+$("#saveOb").onclick=function(){
+  var vals={},bad=false;
+  M.forEach(function(m){vals[m]={};O.forEach(function(o){var v=parseFloat($("#ob-"+m+o).value);if($("#ob-"+m+o).value!==""&&!(v>=0))bad=true;vals[m][o]=isFinite(v)?r2(v):0})});
+  if(bad){msg($("#obMsg"),"Opening balances must be 0 or more.","err");return}
+  L().opening=vals;save();render();msg($("#obMsg"),"✅ Opening balances saved for "+(S.active==="college"?"College":"Personal")+" (not recorded as a transaction).","ok");
+};
+$("#expJson").onclick=function(){download("coinnest-backup-"+today()+".json",JSON.stringify(S,null,2),"application/json");msg($("#bkMsg"),"✅ Backup downloaded.","ok")};
+$("#expCsv").onclick=exportCsv;
+$("#googleSetup").onclick=function(){
+  msg($("#googleMsg"),
+    "Google sign-in and Drive sync are not active yet. To enable secure cloud storage, create a Google Cloud project, enable the Google Drive API, configure an OAuth consent screen and Web OAuth client ID, then connect the app using Google's Identity Services. Do not enter your Gmail password into CoinNest.",
+    "warn");
+};
+$("#googleExport").onclick=function(){
+  download("coinnest-google-drive-backup-"+today()+".json",JSON.stringify(S,null,2),"application/json");
+  msg($("#googleMsg"),"Backup downloaded. You can upload this JSON file to your Google Drive manually. This does not sync automatically.","ok");
+};
+$("#impFile").onchange=function(){importFile(this.files[0]);this.value=""};
+$("#reset").onclick=function(){
+  if(!confirm("This will permanently delete ALL ledgers, transactions, categories and settings on this device. Continue?"))return;
+  var w=prompt('Type RESET (in capitals) to confirm.');
+  if(w!=="RESET"){msg($("#bkMsg"),"Reset cancelled.","warn");return}
+  S=defState();locked=false;save();resetForm();F.cat="all";render();msg($("#bkMsg"),"Everything was reset.","ok");
+};
+
+load();resetForm();render();
+})();
+</script>
+</body>
+</html>
